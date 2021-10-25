@@ -1,0 +1,64 @@
+#!/usr/bin/python3
+
+import sys, requests, json, getopt
+import credentials
+
+url="https://api.oliviawireless.io/getcdrs"
+query={
+    'iccid':credentials.iccid,
+    #'startkey': '2021-10-22T00:00:00',
+    #'stopkey': '2021-10-22T20:00:00'
+    }
+headers={
+    'api_key':credentials.api_key, 
+    'Content-Type': 'application/json'
+    }
+_summe=0
+_verbose="false"
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "hv")
+    # h: help
+    # v: verbose
+except getopt.GetoptError as err:
+    print(err)
+    sys.exit(2)
+
+for option, value in opts:
+    if option == "-h":
+        print("Synopsis: ")
+        print("olivia-volumen [-h] [-v]")
+        print("")
+        print(" -h: show this help")
+        print(" -v: produce human readable output")
+        print("")
+        sys.exit(0)
+
+    if option == "-v":
+        _verbose="true"
+
+def format_bytes(size):
+    # 2**10 = 1024
+    power = 2**10
+    n = 0
+    power_labels = {0 : '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
+    while size > power:
+        size /= power
+        n += 1
+    return size, power_labels[n]+'B'
+
+response=requests.request("GET", url, params=query, headers=headers)
+
+if response.status_code!= 200:
+    raise Exception('HTTP Status code is not 200, but '+str(response.status_code))
+
+data = json.loads(response.text)
+if (_verbose=="true"):
+    for object in data["cdrs"]:
+        print("Start: "+str(object["start"])+"; Stop: "+str(object["stop"])+"; Menge: "+str(object["volume"]))
+        _summe+=object["volume"]
+    print("Data consumed: "+str(format_bytes(_summe)[0]) +" "+ str(format_bytes(_summe)[1]))
+else:
+    for object in data["cdrs"]:
+        _summe+=object["volume"]
+    print("0 \"Olivia volume\" volume="+str(_summe)+";-;-;-;- currently consumed Bytes with olivia wireless")
